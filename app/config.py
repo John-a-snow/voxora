@@ -31,4 +31,10 @@ class Settings(BaseSettings):
             return self
 
         def __exit__(self, exc_type, exc_val, exc_tb):
-            self.elapsed_ms = round
+            self.elapsed_ms = round(
+                (time.perf_counter() - self.start_time) * 1000, 2
+            )
+            logger.info(
+                f"Telemetry | {self.operation_name}: {self.elapsed_ms} ms"
+                )
+            
