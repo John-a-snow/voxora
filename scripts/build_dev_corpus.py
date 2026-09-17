@@ -70,6 +70,40 @@ def build_dev_corpus(input_path: str, output_path: str, max_records: int = 100)
         batch_records = batch.to_pylist()
 
         for record_idx, r in enumerate(batch_records):
+            if source_records_inspected >= max_records:
+               break
+
+            source_records_inspected += 1
+            query_id = r.get("query_id")
+
+            if query_id is None:
+                query_id = source_records_inspected
+
+            target_lang = r.get("target_lang", "hi")
+            source_lang = r.get("source_lang", "en")
+            query_text = clean_text(r.get("query", ""))
+            query_type = r.get("query_type", "")
+
+            passages_dict = r.get("passages", {})
+
+            if not isinstance(passages_dict, dict):
+                continue
+
+            trans_passages = passages_dict.get("Translated_passages", [])
+            eng_passages = passages_dict.get("English_passages", [])
+            is_selected = passages_dict.get("is_selected", [])
+
+            total_passages_encountered += len(trans_passages)
+
+            for p_idx, raw_p_text in enumerate(trans_passages):
+                cleaned_p_text = clean_text(raw_p_text)
+
+                if not cleaned_p_text:
+                    empty_passages_skipeed += 1
+                    continue
+
+                eng_p_text = clean
+                    
 
 
 
