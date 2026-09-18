@@ -102,8 +102,93 @@ def build_dev_corpus(input_path: str, output_path: str, max_records: int = 100)
                     empty_passages_skipeed += 1
                     continue
 
-                eng_p_text = clean
+                eng_p_text = (
+                    clean text(eng_passages[p_idx])
+                    if p_idx < len(eng_passages)
+                    else ""
+                )
+
+                sel_flag = (
+                    int(is_selected[p_idx])
+                    if p_idx < len(is_selected)
+                    else 0 
+                )
+
+                doc_id = f"{query_id}_{p_idx}"
+
+                doc = Document(
+                    document_id=doc_id,
+                    text=cleaned_p_text,
+                    language-str(target_lang or "hi"),
+                    query_id=int(query_id),
+                    passage_index=int(p_idx),
+                    is_selected=int(sel_flag),
+                    source-"ai4bharat/MSMARCO-XI",
+                    english_text=eng_p_text,
+                    query=query_text,
+                    query_type=str(query_type or ""),
+                    source_lang=str(source_lang or "en"),
+                    target_lang=str(source_lang or "en"),
+                    target_lang=str(target_lang or "hi")
+                )
+
+                documents.append(doc.to_dict())
+
+            if source_records_inspected >= max_records:
+                break
+
+        processing_time = round(time.time() - t0, 3)
+        mem_after = get_process_memory_mb()
+        mem_delta = round(mem_after - mem_before, 2)
+
+        logger.info(
+            f"Extracted {len(documents)} document passsages "
+            f" from {source_records_inspected} source records "
+            f"in {processing_time}s."
+        )
+
+        selected_docs = sum(
+            1 for d in documents
+            if d["is_selected"] == 1
+        )
+
+        unselected_docs = sum(
+            1 for d in docuemnts
+            if d["is_selected"] == 0
+        )
+
+        doc_ids = [
+            d["document_id"]
+            for d in documents
+        ]
+
+        text_values = [
+            d["text"]
+            for d in documents
+        ]
+
+        duplicate_ids = len(doc_ids) - len(set(doc_ids))
+        duplicate_texts = len(text_values) - len(set(text_values))
+
+    schema = pa.schema([
+        ("document_id", pa.string()),
+        ("text", pa.string()),
+        ("language", pa.string()),
+        ("query_id", pa.int64()),
+        ("passage_index", pa.int64()),
+        ("is_selected", pa.int64()),
+        ("source", pa.string()),
+        ("english_text", pa.string()),
+        ("query", pa.string()),
+        ("query_type", pa.string()),
+        ("source_lang", pa.string()),
+        ("target_lang", pa.string())
+    ])
+
+            
+        
                     
+                                       
 
 
 
