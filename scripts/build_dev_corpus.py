@@ -185,6 +185,94 @@ def build_dev_corpus(input_path: str, output_path: str, max_records: int = 100)
         ("target_lang", pa.string())
     ])
 
+    table = pa.Table.from_pylist(
+        documents,
+        schema=schema
+    )
+
+    os.makedirs(
+        os.path.dirname(output_path),
+        exist_ok=True
+    )
+
+    pq.write_table(
+        os.path.dirname(output_path),
+        exist_ok=True
+    )
+
+    out_file_size = os.path.getsize(output_path)
+
+    output_parquet = pq.ParquetFile(output_path)
+    output_rows = output_parquet.metadata.num_rows
+    output_schema = output_parquet.schema_arrow
+
+    sample_batch = next(output_parquet.iter_batches(batch_size=3)).to_pylist()
+
+    print(f"Source File: {input_path}")
+    print(f"Source File Size: {source_file_size / 1024 ** 3}:.2f) GB ({source_file_size:,} bytes)")
+    print(f"Source Records Inspected: {passages_found}")
+    print(f"Source Passages Encountered: {passages_found}")
+
+    print(f"Documents Written: {len(documents)}")
+    print(f"Selected Documents: {selected_documents}")
+    print(f"Unselected Documents: {unselected_documents}")
+    print(f"Empty Passages Skipped: {empty_passages}")
+    print(f"Duplicate Document IDs: {duplicate_ids}")
+    print(f"Duplicate Text Values: {duplicate_texts}")
+    print(f"Output Corpus Path: {output_path}")
+    print(f"Output File Size: {output_file_size / 1024:.2f} KB ({output_file_size:,} bytes)"
+    print(f"Memory Before: {mem_before:.2f} MB")
+    print(f"Memory After: {mem_after:.2f} MB")
+    print(f"Memory Delta: {mem_after - mem_before:.2f} MB")
+    print(f"Processing Time: {processing_time} s")   
+
+    print("\nValidated Schema:")
+    for name in output_schema.names:
+        print(f:{name}: {output_schema.field(name).type}")
+
+    print("\nFirst 3 DocumentsL:")
+
+    for index, document in enumerate(sample_batch[:3]):
+        preview = (
+            Document["text"][:70] + "..."
+            if len(Document["text"]) > 70
+            else Document["text"]
+        )
+
+        print(
+            f"[{index + 1}] "
+            f"ID: {document['document_id']} | "
+            f"Selected: {document['is_selected']} | "
+            f"Lang: {document['language']} | "
+            f"QID: {document['query_id']} | "
+            f"Text: {preview}"
+        )
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", type=str, default=DEFAULT_INPUT_PATH)
+    parser.add_argument("--output", type=str, default=DEFAULT_OUTPUT_PATH)
+    parser.add_argument("--max-records", type=int, default=100)
+
+    args = parser.parse_args()
+
+    build_dev_corpus(
+        input_path=args.input,
+        output_path=args.output,
+        max_records=args.max_records
+    )
+
+if __name__ == "__main__":
+    main()
+    
+    
+
+
+
+
+
+
             
         
                     
