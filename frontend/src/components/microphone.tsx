@@ -1,7 +1,7 @@
 import { useState, useref } from 'react';
 import axios from 'axios';
 import { Mic, Loader2, StopCircle } from 'lucide-react';
-import type { VoiceQueryResponse } from '../types';
+import { VoiceQueryResponse } from '../types';
 
 const API_BASE_URL = 
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8001';
@@ -31,5 +31,46 @@ export const Microphone: React.FC<MicrophoneProps> = ({ onResult, onError, onCle
                   chunksRef.current.push(e.data);
                 }
             };
+
+            mediaRecorder.onstop = async () => {
+              const audioBlob = new Blob(chunksRef.currect, { type: 'audio/wav' });
+              await processAudio(audioBlob);
+
+
+              stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorder.start();
+            setIsRecording(true);
+        }  catch (err) {
+            console.error(err);
+            onError("Microphone permission denied or unavailable.");
         }
+};
+
+const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+       mediaRecorderRef.current.stop();
+       setIsRecording(false); 
+    }
+};
+
+const processAudio = async (audioBlob: Blob) => {
+    setIsProcessing(true);
+    try {
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.wav');
+
+        const response = await axios.post<VoiceQueryResponse>(`${API_BASE_URL}/api/voice-query`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+
+        onResult(response.data);
+    }  catch (err: any) {
+        console.error(err);
+        if (err.response && err.response.)
+    }  
+    }
 }
