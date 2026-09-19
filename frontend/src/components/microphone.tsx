@@ -70,7 +70,13 @@ const processAudio = async (audioBlob: Blob) => {
         onResult(response.data);
     }  catch (err: any) {
         console.error(err);
-        if (err.response && err.response.)
-    }  
+        if (err.response && err.response.data && err.response.data.detail) {
+            onError(err.response.data.detail);
+        } else {
+            onError("Backend offline or request failed.");
+        }
+    }  finally {
+        setIsProcessing(false);
+    }
     }
 }
