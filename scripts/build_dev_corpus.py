@@ -2,29 +2,37 @@ import os
 import sys
 import time
 import argparse
-import logging
+
+import duckdb
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(
+    0,
+    os.path.dirname(
+        os.path.dirname(
+            os.path.abspath(__file__)
+        )
+    )
+)
+
 from app.ingestion.models import Document
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+
+BASE_DIR = os.path.dirname(
+    os.path.dirname(
+        os.path.abspath(__file__)
+    )
 )
-logger = logging.getLogger(__name__)
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-DEFAULT_INPUT_PATH = os.path.join(
+DEFAULT_INPUT = os.path.join(
     BASE_DIR,
     "data",
     "raw",
     "hintrain.parquet"
 )
 
-DEFAULT_OUTPUT_PATH = os.path.join(
+DEFAULT_OUTPUT = os.path.join(
     BASE_DIR,
     "data",
     "processed",
@@ -32,169 +40,164 @@ DEFAULT_OUTPUT_PATH = os.path.join(
 )
 
 
-def get_process_memory_mb() -> float:
-    try:
-        import psutil
-        return psutil.Process().memory_info().rss / (1024.0 * 1024.0)
-    except Exception:
-        pass
-
-    try:
-        with open("/proc/self/status") as f:
-            for line in f:
-                if line.startswith("VmRSS:"):
-                    return float(line.split()[1]) / 1024.0
-    except Exception:
-        pass
-
-    import resource
-    return float(
-        resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    ) / 1024.0
-
-
-def clean_text(raw_text: str) -> str:
-    if not raw_text:
+def clean_text(value):
+    if value is None:
         return ""
 
-    text = str(raw_text).replace("\r\n", "\n").replace("\r", "\n")
-    return " ".join(text.split())
-
-
-def build_dev_corpus(
-    input_path: str,
-    output_path: str,
-    max_records: int = 100
-) -> None:
-    mem_before = get_process_memory_mb()
-    t0 = time.time()
-
-    logger.info(f"Memory before reading: {mem_before:.2f} MB")
-    logger.info(f"Input source Parquet path: {input_path}")
-
-    if not os.path.exists(input_path):
-        logger.error(f"Local source Parquet file not found at: {input_path}")
-        print("\nERROR: No local MSMARCO-XI Parquet artifact is available.\n")
-        sys.exit(1)
-
-    source_file_size = os.path.getsize(input_path)
-
-    logger.info(
-        f"Source file size: {source_file_size / (1024 ** 3):.2f} GB "
-        f"({source_file_size:,} bytes)"
+    return " ".join(
+        str(value)
+        .replace("\r\n", "\n")
+        .replace("\r", "\n")
+        .split()
     )
 
-    pf = pq.ParquetFile(input_path)
 
-    source_records_inspected = 0
-    total_passages_encountered = 0
-    empty_passages_skipped = 0
+def get_value(value, key, default=None):
+    if isinstance(value, dict):
+        return value.get(key, default)
+
+    try:
+        return value[key]
+    except Exception:
+        return default
+
+
+def build_corpus(
+    input_path,
+    output_path,
+    max_records
+):
+    if not os.path.exists(input_path):
+        raise FileNotFoundError(
+            f"Dataset not found: {input_path}"
+        )
+
+    start = time.time()
+
+    print("Reading dataset with DuckDB...")
+    print(f"Input: {input_path}")
+
+    conn = duckdb.connect()
+
+    query = """
+        SELECT
+            query_id,
+            target_lang,
+            source_lang,
+            query,
+            query_type,
+            passages
+        FROM read_parquet(?)
+        LIMIT ?
+    """
+
+    rows = conn.execute(
+        query,
+        [input_path, max_records]
+    ).fetchall()
+
+    conn.close()
+
+    print(f"Source records read: {len(rows)}")
+
     documents = []
+    total_passages = 0
+    empty_passages = 0
 
-    for batch in pf.iter_batches(batch_size=max_records):
-        batch_records = batch.to_pylist()
+    for row in rows:
 
-        for r in batch_records:
-            if source_records_inspected >= max_records:
-                break
+        query_id = row[0]
+        target_lang = row[1]
+        source_lang = row[2]
+        query_text = clean_text(row[3])
+        query_type = row[4]
+        passages = row[5]
 
-            source_records_inspected += 1
+        if query_id is None:
+            query_id = len(documents) + 1
 
-            query_id = r.get("query_id")
-            if query_id is None:
-                query_id = source_records_inspected
+        translated = get_value(
+            passages,
+            "Translated_passages",
+            []
+        )
 
-            target_lang = r.get("target_lang", "hi")
-            source_lang = r.get("source_lang", "en")
-            query_text = clean_text(r.get("query", ""))
-            query_type = r.get("query_type", "")
+        english = get_value(
+            passages,
+            "English_passages",
+            []
+        )
 
-            passages_dict = r.get("passages", {})
+        selected = get_value(
+            passages,
+            "is_selected",
+            []
+        )
 
-            if not isinstance(passages_dict, dict):
+        translated = translated or []
+        english = english or []
+        selected = selected or []
+
+        total_passages += len(translated)
+
+        for index, raw_text in enumerate(
+            translated
+        ):
+
+            text = clean_text(raw_text)
+
+            if not text:
+                empty_passages += 1
                 continue
 
-            trans_passages = passages_dict.get(
-                "Translated_passages",
-                []
-            )
-            eng_passages = passages_dict.get(
-                "English_passages",
-                []
-            )
-            is_selected = passages_dict.get(
-                "is_selected",
-                []
-            )
+            english_text = ""
 
-            total_passages_encountered += len(trans_passages)
-
-            for p_idx, raw_p_text in enumerate(trans_passages):
-                cleaned_p_text = clean_text(raw_p_text)
-
-                if not cleaned_p_text:
-                    empty_passages_skipped += 1
-                    continue
-
-                eng_p_text = (
-                    clean_text(eng_passages[p_idx])
-                    if p_idx < len(eng_passages)
-                    else ""
+            if index < len(english):
+                english_text = clean_text(
+                    english[index]
                 )
 
-                sel_flag = (
-                    int(is_selected[p_idx])
-                    if p_idx < len(is_selected)
-                    else 0
+            selected_flag = 0
+
+            if index < len(selected):
+                try:
+                    selected_flag = int(
+                        selected[index]
+                    )
+                except Exception:
+                    selected_flag = 0
+
+            document = Document(
+                document_id=f"{query_id}_{index}",
+                text=text,
+                language=str(
+                    target_lang or "hi"
+                ),
+                query_id=int(query_id),
+                passage_index=int(index),
+                is_selected=selected_flag,
+                source="ai4bharat/MSMARCO-XI",
+                english_text=english_text,
+                query=query_text,
+                query_type=str(
+                    query_type or ""
+                ),
+                source_lang=str(
+                    source_lang or "en"
+                ),
+                target_lang=str(
+                    target_lang or "hi"
                 )
+            )
 
-                doc_id = f"{query_id}_{p_idx}"
+            documents.append(
+                document.to_dict()
+            )
 
-                doc = Document(
-                    document_id=doc_id,
-                    text=cleaned_p_text,
-                    language=str(target_lang or "hi"),
-                    query_id=int(query_id),
-                    passage_index=int(p_idx),
-                    is_selected=int(sel_flag),
-                    source="ai4bharat/MSMARCO-XI",
-                    english_text=eng_p_text,
-                    query=query_text,
-                    query_type=str(query_type or ""),
-                    source_lang=str(source_lang or "en"),
-                    target_lang=str(target_lang or "hi")
-                )
-
-                documents.append(doc.to_dict())
-
-        if source_records_inspected >= max_records:
-            break
-
-    processing_time = round(time.time() - t0, 3)
-    mem_after = get_process_memory_mb()
-    mem_delta = round(mem_after - mem_before, 2)
-
-    logger.info(
-        f"Extracted {len(documents)} document passages from "
-        f"{source_records_inspected} source records in "
-        f"{processing_time}s."
-    )
-
-    selected_docs = sum(
-        1 for d in documents
-        if d["is_selected"] == 1
-    )
-
-    unselected_docs = sum(
-        1 for d in documents
-        if d["is_selected"] == 0
-    )
-
-    doc_ids = [d["document_id"] for d in documents]
-    text_values = [d["text"] for d in documents]
-
-    duplicate_ids = len(doc_ids) - len(set(doc_ids))
-    duplicate_texts = len(text_values) - len(set(text_values))
+    if not documents:
+        raise RuntimeError(
+            "No documents were extracted."
+        )
 
     schema = pa.schema([
         ("document_id", pa.string()),
@@ -226,88 +229,60 @@ def build_dev_corpus(
         output_path
     )
 
-    out_file_size = os.path.getsize(output_path)
-
-    val_pf = pq.ParquetFile(output_path)
-    val_num_rows = val_pf.metadata.num_rows
-    val_schema = val_pf.schema_arrow
-    val_batch = next(
-        val_pf.iter_batches(batch_size=3)
-    ).to_pylist()
-
-    print("\nCorpus build complete.")
-    print(f"Source records: {source_records_inspected}")
-    print(f"Passages found: {total_passages_encountered}")
-    print(f"Documents written: {len(documents)}")
-    print(f"Selected documents: {selected_docs}")
-    print(f"Unselected documents: {unselected_docs}")
-    print(f"Empty passages skipped: {empty_passages_skipped}")
-    print(f"Duplicate document IDs: {duplicate_ids}")
-    print(f"Duplicate text values: {duplicate_texts}")
-    print(f"Output: {output_path}")
-    print(
-        f"Output size: {out_file_size / 1024:.2f} KB "
-        f"({out_file_size:,} bytes)"
+    elapsed = round(
+        time.time() - start,
+        2
     )
-    print(f"Memory before: {mem_before:.2f} MB")
-    print(f"Memory after: {mem_after:.2f} MB")
-    print(f"Memory change: {mem_delta:.2f} MB")
-    print(f"Processing time: {processing_time} s")
 
-    print("\nSchema:")
-    for name in val_schema.names:
-        print(f"{name}: {val_schema.field(name).type}")
+    print()
+    print("Corpus build complete")
+    print("---------------------")
+    print(f"Source records: {len(rows)}")
+    print(f"Passages found: {total_passages}")
+    print(f"Documents written: {len(documents)}")
+    print(f"Empty passages: {empty_passages}")
+    print(f"Output: {output_path}")
+    print(f"Time: {elapsed} seconds")
 
-    print("\nFirst 3 documents:")
-    for idx, d in enumerate(val_batch[:3]):
-        text_preview = (
-            d["text"][:70] + "..."
-            if len(d["text"]) > 70
-            else d["text"]
-        )
+    check = pq.read_table(
+        output_path,
+        columns=[
+            "document_id",
+            "text"
+        ]
+    )
 
-        print(
-            f"{idx + 1}. "
-            f"ID={d['document_id']} | "
-            f"Selected={d['is_selected']} | "
-            f"Lang={d['language']} | "
-            f"QID={d['query_id']} | "
-            f"Text={text_preview}"
-        )
+    print(
+        f"Validation: {check.num_rows} documents loaded."
+    )
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Development Corpus Builder"
-    )
+
+    parser = argparse.ArgumentParser()
 
     parser.add_argument(
         "--input",
-        type=str,
-        default=DEFAULT_INPUT_PATH,
-        help="Path to local source Parquet file"
+        default=DEFAULT_INPUT
     )
 
     parser.add_argument(
         "--output",
-        type=str,
-        default=DEFAULT_OUTPUT_PATH,
-        help="Output corpus Parquet path"
+        default=DEFAULT_OUTPUT
     )
 
     parser.add_argument(
         "--max-records",
         type=int,
-        default=100,
-        help="Maximum source records to inspect"
+        default=100
     )
 
     args = parser.parse_args()
 
-    build_dev_corpus(
-        input_path=args.input,
-        output_path=args.output,
-        max_records=args.max_records
+    build_corpus(
+        args.input,
+        args.output,
+        args.max_records
     )
 
 

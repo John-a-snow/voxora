@@ -1,3 +1,12 @@
-node_modules/
 .env
 .env.*
+!.env.example
+__pycache__/
+.venv/
+.vscode/
+data/raw/
+data/processed/
+data/indexes/
+frontend/node_modules/
+frontend/dist/
+*.log

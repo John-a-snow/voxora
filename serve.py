@@ -8,12 +8,13 @@ from dotenv import load_dotenv
 
 
 project_root = os.path.dirname(
-    os.path.dirname(
-        os.path.abspath(__file__)
-    )
+    os.path.abspath(__file__)
 )
 
-sys.path.insert(0, project_root)
+sys.path.insert(
+    0,
+    project_root
+)
 
 load_dotenv(
     os.path.join(
@@ -22,14 +23,12 @@ load_dotenv(
     )
 )
 
-
 from app.api.routes import router
 
 
 app = FastAPI(
     title="Voxora Voice RAG API"
 )
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,8 +38,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 app.include_router(router)
+
 
 if __name__ == "__main__":
     uvicorn.run(

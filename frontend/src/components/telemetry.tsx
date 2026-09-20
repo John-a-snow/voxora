@@ -1,72 +1,164 @@
-import type { Timings, LatencySummary } from '../types';
+import type { LatencySummary, Timings } from "../types";
 
 interface TelemetryProps {
-    timings: Timings;
-    latencySummary?: LatencySummary | null;
+  timings: Timings;
+  latencySummary?: LatencySummary | null;
 }
 
-export const Telemetry: React.FC<TelemetryProps> = ({ timings, latencySummary }) => {
-    const localMs = timings.retrieval_ms + timings.grounding_ms;
-    const remoteMs = timings.stt_ms + timings.generation_ms;
+function Metric({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="border-2 border-neutral-900 bg-white p-5">
+      <p className="text-xs uppercase tracking-widest font-bold text-gray-500">
+        {label}
+      </p>
 
-    return (
-        <div className="mt-16 mb-8">
-            <h3 className="text-3xl font-black uppercase tracking-tighter mb-6 border-b-2 border-brand-border pb-2 inline-block">
-                Pipeline Telemetry
-            </h3>
+      <p className="text-3xl font-black mt-2">
+        {value.toFixed(0)} ms
+      </p>
+    </div>
+  );
+}
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div className="border-2 border-brand p-4 bg-white relative">
-                    <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">STT</div>
-                    <div className="text-sm font-medium mb-2">Sarvam</div>
-                    <div className="text-2xl font-black text-brand-primary">{timings.stt_ms.toFixed(0)} ms</div>
-                </div>
+export function Telemetry({
+  timings,
+  latencySummary,
+}: TelemetryProps) {
+  return (
+    <section className="mt-16 mb-10">
+      <h3 className="text-3xl font-black uppercase mb-6">
+        Pipeline Telemetry
+      </h3>
 
-                <div className="border-2 border-brand-border p-4 bg-white relative">
-                    <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Retrieval</div>
-                    <div className="text-sm font-medium mb-2">E5 + FAISS / BM25</div>
-                    <div className="text-2xl font-black">{timings.retrieval_ms.toFixed(1)} ms</div>
-                </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Metric
+          label="STT"
+          value={timings.stt_ms}
+        />
 
-                <div className="border-2 border-brand-border p-4 bg-white relative">
-                    <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Generation</div>
-                    <div className="text-sm font-medium mb-2">Grog</div>
-                    <div className="text-2xl font-black text-brand-primary">{timings.generation_ms.toFixed(0)} ms</div>
-                    {timings.generation_ms === 0 && (
-                        <div className="absolute top-4 right-4 text-[10px] font-black uppercase text-red-600 border border-red-600 px-1 py-0.5">
-                            LLM Called: No
-                        </div>    
-                    )}
-                    </div>
+        <Metric
+          label="Retrieval"
+          value={timings.retrieval_ms}
+        />
 
-                    <div className="border-2 border-brand-border p-4 bg-white relative">
-                        <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Ground</div>
-                        <div className="text-sm font-medium mb-2">Validator</div>
-                        <div className="text-2xl font-black">{timings.grounding_ms.toFixed(1)} ms</div>
-                </div>
-            </div>
+        <Metric
+          label="Generation"
+          value={timings.generation_ms}
+        />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-                <div className="border-t-2 border-brand-border pt-4">
-                    <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Local Pipeline</div>
-                    <div className="text-lg font-medium">Retrieval + Guardrails</div>
-                    <div className="text-3xl font-black mt-2">{localMs.toFixed(1)}</div>
-                </div>
+        <Metric
+          label="Grounding"
+          value={timings.grounding_ms}
+        />
+      </div>
 
-                <div className="border-t-2 border-brand-border pt-4">
-                    <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">API / Network</div>
-                    <div className="text-lg font-medium">Sarvam + Groq</div>
-                    <div className="text-3xl font-black mt-2 text-brand-primary">{remoteMs.toFixed(0)} ms</div>
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <Metric
+          label="Total RAG"
+          value={timings.total_rag_ms}
+        />
 
-                <div className="border-t-4 border-brand-border pt-4 bg-gray-100 px-4 pb-4 -mx-4 md:mx-0">
-                    <div className="text-xs font-bold uppercase tracking-widest text-gray-800 mb-2">Total End-to-End</div>
-                    <div className="text-lg font-medium">Total Latency</div>
-                    <div className="text-4xl font-black mt-2">{timings.total_e2e_ms.toFixed(0)} ms</div>
-                </div>
-            </div>
+        <Metric
+          label="End to End"
+          value={timings.total_e2e_ms}
+        />
+      </div>
 
-            {}
+      {latencySummary && latencySummary.sample_count > 0 && (
+        <div className="mt-12 border-t-2 border-neutral-900 pt-8">
+          <div className="flex justify-between items-end mb-5">
+            <h4 className="text-2xl font-black uppercase">
+              Latency Analytics
+            </h4>
+
+            <p className="text-xs font-bold text-gray-500">
+              Samples: {latencySummary.sample_count}
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b-2 border-neutral-900 text-left">
+                  <th className="py-3">Metric</th>
+                  <th className="py-3 text-right">P50</th>
+                  <th className="py-3 text-right">P70</th>
+                  <th className="py-3 text-right">P100</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <LatencyRow
+                  label="STT"
+                  metric={latencySummary.stt_ms}
+                />
+
+                <LatencyRow
+                  label="Retrieval"
+                  metric={latencySummary.retrieval_ms}
+                />
+
+                <LatencyRow
+                  label="Generation"
+                  metric={latencySummary.generation_ms}
+                />
+
+                <LatencyRow
+                  label="Grounding"
+                  metric={latencySummary.grounding_ms}
+                />
+
+                <LatencyRow
+                  label="Total RAG"
+                  metric={latencySummary.total_rag_ms}
+                />
+
+                <LatencyRow
+                  label="Total End to End"
+                  metric={latencySummary.total_e2e_ms}
+                />
+              </tbody>
+            </table>
+          </div>
         </div>
-    )
+      )}
+    </section>
+  );
+}
+
+function LatencyRow({
+  label,
+  metric,
+}: {
+  label: string;
+  metric: {
+    p50: number;
+    p70: number;
+    p100: number;
+  };
+}) {
+  return (
+    <tr className="border-b border-gray-200">
+      <td className="py-3 font-bold">
+        {label}
+      </td>
+
+      <td className="py-3 text-right">
+        {metric.p50.toFixed(1)} ms
+      </td>
+
+      <td className="py-3 text-right">
+        {metric.p70.toFixed(1)} ms
+      </td>
+
+      <td className="py-3 text-right font-black">
+        {metric.p100.toFixed(1)} ms
+      </td>
+    </tr>
+  );
 }

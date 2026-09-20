@@ -1,83 +1,109 @@
-import { useState, useEffect } from 'react';
-import { Hero } from './components/Hero';
-import { Microphone } from './components/microphone';
-import { Telemetry } from './components/telemetry';
-import { Result } from './components/result';
-import type { VoiceQueryResponse, LatencySummary } from './types';
-import axios from 'axios';
+import { useEffect, useState } from "react";
+import { Hero } from "./components/Hero";
+import { Microphone } from "./components/Microphone";
+import { Results } from "./components/Results";
+import { Telemetry } from "./components/Telemetry";
+import type {
+  LatencySummary,
+  VoiceQueryResponse,
+} from "./types";
 
-const API_BASE_URL = 
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8001';
+const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+  "http://localhost:8001";
 
+export default function App() {
+  const [result, setResult] =
+    useState<VoiceQueryResponse | null>(null);
 
-  function App() {
-    const [result, setResult] = useState<VoiceQueryResponse | null>(null);
-    const [latencySummary, setLatencySummary] = useState<LatencySummary | null>(null);
-    const [error, setError] = useState<string | null>(null);
+  const [latencySummary, setLatencySummary] =
+    useState<LatencySummary | null>(null);
 
-    const fetchLatencySummary = async () => {
-      try {
-        const response = await axios.get<LatencySummary>(`${API_BASE_URL}/api/latency/summary?sample_size=10`);
-        setLatencySummary(response.data);
-      }  catch (err) {
-        console.error("Failed to fetch latency summary", err);
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const fetchLatencySummary = async () => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/latency/summary?sample_size=10`
+      );
+
+      if (!response.ok) {
+        return;
       }
-    };
 
-    useEffect(() => {
-        fetchLatencySummary();
-    }, []);
+      const data =
+        (await response.json()) as LatencySummary;
 
-    const handleResult = (newResult: VoiceQueryResponse) => {
-        setResult(newResult);
-        setError(null);
-        fetchLatencySummary();
-    };
+      setLatencySummary(data);
+    } catch (error) {
+      console.error(
+        "Could not load latency summary",
+        error
+      );
+    }
+  };
 
-    const handleError = (errorMessage: string) => {
-        setError(errorMessage);
-        setResult(null);
-    };
+  useEffect(() => {
+    fetchLatencySummary();
+  }, []);
 
-    const handleClear = () => {
-        setResult(null);
-        setError(null);
-    };
+  const handleResult = (
+    newResult: VoiceQueryResponse
+  ) => {
+    setResult(newResult);
+    setError(null);
+    fetchLatencySummary();
+  };
 
-    return (
-        <div className="min-h-screen p-6 md:p-12 lg:p-24 selection:bg-brand-primary selection:text-white relative pb-32">
+  const handleError = (message: string) => {
+    setError(message);
+    setResult(null);
+  };
 
-            <div className="absolute top-12 right-12 w-32 h-32 border-t-4 border-r-4 border-brand-border opacity-20 pointer-events-none hidden md:block"></div>
-            <div className="absolute bottom-12 left-12 w-24 h-24 border-b-4 border-l-4 border-brand-border opacity-20 pointer-events-none hidden md:block"></div>
+  const handleClear = () => {
+    setResult(null);
+    setError(null);
+  };
 
-            <div className="max-w-6xl mx-auto relative z-10">
-                <Hero />
+  return (
+    <main className="min-h-screen bg-gray-50 px-6 py-10 md:px-12">
+      <div className="max-w-6xl mx-auto">
+        <Hero />
 
-                <Microphone
-                  onResult={handleResult}
-                  onError={handleError}
-                  onClear={handleClear}
-                />
+        <Microphone
+          onResult={handleResult}
+          onError={handleError}
+          onClear={handleClear}
+        />
 
-                {error && (
-                    <div className="mt-8 border-l-4 border-red-600 bg-red-50 p-6 shadow-sm">
-                        <h3 className="text-red-800 font-bold uppercase tracking-widest text-xs mb-2">Error</h3>
-                        <p className="text-red-900 font-medium text-lg">{error}</p>
-                        </div>
-                )}  
+        {error && (
+          <div className="mt-8 border-2 border-red-600 bg-red-50 p-5">
+            <p className="text-xs uppercase tracking-widest font-bold text-red-600 mb-2">
+              Error
+            </p>
 
-                {result && (
-                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        <Result result={result} />
-                        <Telemetry timings={result.timings} latencySummary={latencySummary} />
-                        </div>
-                )}
-            </div>
+            <p className="text-red-800 font-medium">
+              {error}
+            </p>
+          </div>
+        )}
 
-            <footer className="absolute bottom-8 right-12 text-xs font-bold uppercase tracking-widest text-gray-400">    
-            </footer>
-        </div>
-    );
+        {result && (
+          <>
+            <Results result={result} />
+
+            <Telemetry
+              timings={result.timings}
+              latencySummary={latencySummary}
+            />
+          </>
+        )}
+
+        <footer className="mt-20 pb-6 text-xs font-bold uppercase tracking-widest text-gray-400">
+          VOXORA • VOICE + RETRIEVAL + GROUNDED ANSWERS
+        </footer>
+      </div>
+    </main>
+  );
 }
-
-export default App;
