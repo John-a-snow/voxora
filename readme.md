@@ -1,8 +1,9 @@
-# VOXORA
 
 <p align="center">
-  <img src="Third_space.png" alt="Voxora" width="900">
+  <img src="assets/Third_space.png" alt="Voxora" width="900">
 </p>
+
+# VOXORA
 
 **Voxora is a voice-based question answering project that combines speech-to-text, document retrieval and grounded responses.**
 
@@ -24,9 +25,8 @@ The backend can currently be started locally with FastAPI and the main retrieval
 - Creating text embeddings with E5
 - Searching documents with FAISS
 - Adding BM25 for another type of search
-- Adding a fallback when search results are weak
+- Adding a fallback when search results
 - Using Groq to generate answers
-- Adding some basic safety checks
 
 ```text
 Voice input
@@ -48,21 +48,6 @@ Groq Response
 Grounding Check
     ↓
 Final Answer
-```
-
-## Project structure
-
-```text
-voxora/
-│
-├── app/
-├── data/
-├── frontend/
-├── scripts/
-├── api/
-├── serve.py
-├── requirements.txt
-└── README.md
 ```
 
 **How to run it locally**
@@ -170,5 +155,6 @@ Python, FastAPI, React, TypeScript, Sarvam, Groq, FAISS, BM25, Sentence Transfor
 
 ## Built by
 **Arushv**
+
 **Zenix**
 
