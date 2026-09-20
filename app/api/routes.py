@@ -1,4 +1,4 @@
-import os 
+import os
 import time
 import tempfile
 import logging
@@ -12,7 +12,7 @@ from fastapi import (
 
 from app.stt.sarvam import SarvamSTTProvider
 from app.retrieval.metadata import CorpusMetadataLoader
-from app.embeddings.model import MutlilingualE5Embedder
+from app.embeddings.model import MultilingualE5Embedder
 from app.retrieval.faiss_index import FaissVectorIndex
 from app.retrieval.bm25 import BM25Retriever
 from app.retrieval.retriever import (
@@ -25,14 +25,16 @@ from app.guardrails.policy import (
     GuardrailPolicy,
     GuardrailPolicyConfig
 )
-from app.pipeline.text_rag import TEXTRAGService
-from app.observability.latency_buffer import 
+from app.pipeline.text_rag import TextRAGService
+from app.observability.latency_buffer import latency_buffer
+
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 services = {}
+
 
 def initialize_services():
     if "rag_service" in services:
@@ -53,7 +55,7 @@ def initialize_services():
     services["stt_provider"] = SarvamSTTProvider()
 
     logger.info(
-        "Initializing RAG component..."
+        "Initializing RAG components..."
     )
 
     parquet_path = os.path.join(
@@ -130,9 +132,11 @@ def initialize_services():
         "Services initialized."
     )
 
+
 @router.on_event("startup")
 async def startup_event():
     initialize_services()
+
 
 @router.post("/api/voice-query")
 async def voice_query(
@@ -156,5 +160,164 @@ async def voice_query(
     rag_service = services[
         "rag_service"
     ]
-        
 
+    try:
+        suffix = (
+            os.path.splitext(audio.filename)[1]
+            if audio.filename
+            else ".wav"
+        )
+
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=suffix
+        ) as tmp:
+
+            content = await audio.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+
+        stt_result = stt_provider.transcribe(
+            tmp_path
+        )
+
+    finally:
+        if (
+            "tmp_path" in locals()
+            and os.path.exists(tmp_path)
+        ):
+            os.remove(tmp_path)
+
+    if not stt_result.transcript.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="No speech detected"
+        )
+
+    lang = stt_result.detected_language
+
+    lang_name = (
+        "Hindi"
+        if "hi" in lang.lower()
+        else "English"
+    )
+
+    result = rag_service.run(
+        stt_result.transcript,
+        metadata={
+            "language": lang_name
+        }
+    )
+
+    end_e2e = time.perf_counter()
+
+    total_latency_ms = round(
+        (end_e2e - start_e2e) * 1000.0,
+        2
+    )
+
+    telemetry = result.get(
+        "telemetry",
+        {}
+    )
+
+    stt_ms = stt_result.latency_ms
+
+    retrieval_ms = (
+        telemetry.get("retrieval_ms", 0)
+        + telemetry.get(
+            "retrieval_guardrail_ms",
+            0
+        )
+    )
+
+    generation_ms = telemetry.get(
+        "llm_ms",
+        0
+    )
+
+    grounding_ms = telemetry.get(
+        "grounding_guardrail_ms",
+        0
+    )
+
+    total_rag_ms = telemetry.get(
+        "total_ms",
+        0
+    )
+
+    status = result.get(
+        "status",
+        "error"
+    )
+
+    llm_called = generation_ms > 0
+
+    latency_buffer.add_record({
+        "stt_ms": stt_ms,
+        "retrieval_ms": retrieval_ms,
+        "generation_ms": generation_ms,
+        "grounding_ms": grounding_ms,
+        "total_rag_ms": total_rag_ms,
+        "total_e2e_ms": total_latency_ms,
+        "status": status,
+        "llm_called": llm_called
+    })
+
+    return {
+        "transcript": stt_result.transcript,
+        "language": lang,
+        "answer": result.get(
+            "answer"
+        ),
+        "grounded": result.get(
+            "grounded",
+            False
+        ),
+        "citations": result.get(
+            "citations",
+            []
+        ),
+        "status": result.get(
+            "status"
+        ),
+        "timings": {
+            "stt_ms": stt_result.latency_ms,
+            "retrieval_ms": (
+                telemetry.get(
+                    "retrieval_ms",
+                    0
+                )
+                + telemetry.get(
+                    "retrieval_guardrail_ms",
+                    0
+                )
+            ),
+            "generation_ms": telemetry.get(
+                "llm_ms",
+                0
+            ),
+            "grounding_ms": telemetry.get(
+                "grounding_guardrail_ms",
+                0
+            ),
+            "total_rag_ms": telemetry.get(
+                "total_ms",
+                0
+            ),
+            "total_e2e_ms": total_latency_ms
+        },
+        "retrieved_documents": result.get(
+            "retrieved_documents",
+            []
+        )
+    }
+
+
+@router.get("/api/latency/summary")
+def get_latency_summary(
+    sample_size: int = 10
+):
+    return latency_buffer.get_summary(
+        sample_size=sample_size
+    )
