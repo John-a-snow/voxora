@@ -14,7 +14,9 @@ class CorpusMetadataLoader:
 
     def get_document(self, row_id: int):
         if row_id < 0 or row_id >= len(self.documents):
-            raise IndexError(f"Invalid document row: {row_id}")
+            raise IndexError(
+                f"Invalid document row: {row_id}"
+            )
 
         return self.documents[row_id]
 
