@@ -20,7 +20,13 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-DEFAULT_INPUT_PATH = "/home/arvind/.cache/huggingface/hub/datasets--ai4bharat--MSMARCO-XI/snapshots/bf5cdc1f26e581e519018e434db14edd1b77602b/train/hintrain.parquet"
+DEFAULT_INPUT_PATH = os.path.join(
+    BASE_DIR,
+    "data",
+    "raw",
+    "hintrain.parquet"
+)
+
 DEFAULT_OUTPUT_PATH = os.path.join(
     BASE_DIR,
     "data",
