@@ -91,7 +91,7 @@ def build_dev_corpus(
     empty_passages_skipped = 0
     documents = []
 
-    for batch in pf.iter_batches(batch_size=max_records):
+    for batch in pf.iter_batches(batch_size=1):
         batch_records = batch.to_pylist()
 
         for r in batch_records:
