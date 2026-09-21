@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Hero } from "./components/hero";
 import { Microphone } from "./components/microphone";
 import { Results } from "./components/Results";
