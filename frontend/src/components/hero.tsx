@@ -14,7 +14,7 @@ export const Hero = () => {
 
             <div className="max-w-4xl">
                 <h1 className="text-6xl md:text-8xl font-black tracking-tighter uppercase leading-none mb-6">
-                    Ask The<br />Corpus.
+                    Ask The<br />Voxora.
                 </h1>
                 <p className="text-lg md:text-xl font-medium max-w-2xl text-gray-800 leading-relaxed border-l-4 border-brand-primary pl-4">
                     Speak a question. Retrieve evidence. Get an answer grounded in the provided knowledge base.

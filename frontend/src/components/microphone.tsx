@@ -25,7 +25,7 @@ export function Microphone({
 
   const startRecording = async () => {
     try {
-      onClear();
+      onClear?.();
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
