@@ -25,7 +25,7 @@ export function Telemetry({
           <div>
             <strong>Speech to Text</strong>
             <p>{timings.stt_ms ?? 0} ms</p>
-          </div>
+          </div>           
 
           <div>
             <strong>Retrieval</strong>
