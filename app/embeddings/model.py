@@ -1,5 +1,4 @@
 import logging
-import os
 import time
 from typing import List
 
@@ -33,11 +32,24 @@ class MultilingualE5Embedder:
             filename="onnx/tokenizer.json"
         )
 
-        self.tokenizer = Tokenizer.from_file(tokenizer_file)
+        self.tokenizer = Tokenizer.from_file(
+            tokenizer_file
+        )
+
+        self.tokenizer.enable_truncation(
+            max_length=512
+        )
+
+        self.tokenizer.enable_padding(
+            pad_id=0,
+            pad_token="[PAD]"
+        )
 
         options = ort.SessionOptions()
+
         options.intra_op_num_threads = 1
         options.inter_op_num_threads = 1
+
         options.graph_optimization_level = (
             ort.GraphOptimizationLevel.ORT_ENABLE_ALL
         )
@@ -49,10 +61,13 @@ class MultilingualE5Embedder:
         )
 
         self.input_names = {
-            item.name for item in self.session.get_inputs()
+            item.name
+            for item in self.session.get_inputs()
         }
 
-        self.output_name = self.session.get_outputs()[0].name
+        self.output_name = (
+            self.session.get_outputs()[0].name
+        )
 
         self.load_time_s = round(
             time.time() - start_time,
@@ -60,7 +75,8 @@ class MultilingualE5Embedder:
         )
 
         logger.info(
-            f"ONNX embedder ready in {self.load_time_s}s "
+            f"ONNX embedder ready in "
+            f"{self.load_time_s}s "
             f"(dimension: {self.embedding_dim})"
         )
 
@@ -68,33 +84,55 @@ class MultilingualE5Embedder:
         cpu_info = ""
 
         try:
-            with open("/proc/cpuinfo", "r") as file:
+            with open(
+                "/proc/cpuinfo",
+                "r"
+            ) as file:
                 cpu_info = file.read().lower()
         except OSError:
             pass
 
         if "avx512_vnni" in cpu_info:
-            model_file = "onnx/model_qint8_avx512_vnni.onnx"
+            model_file = (
+                "onnx/"
+                "model_qint8_avx512_vnni.onnx"
+            )
         else:
-            model_file = "onnx/model_O4.onnx"
+            model_file = (
+                "onnx/model_O4.onnx"
+            )
 
-        logger.info(f"Using ONNX model: {model_file}")
+        logger.info(
+            f"Using ONNX model: {model_file}"
+        )
 
         return hf_hub_download(
             repo_id=self.model_name,
             filename=model_file
         )
 
-    def _encode(self, texts: List[str]) -> np.ndarray:
-        encoded = self.tokenizer.encode_batch(texts)
+    def _encode(
+        self,
+        texts: List[str]
+    ) -> np.ndarray:
+
+        encoded = self.tokenizer.encode_batch(
+            texts
+        )
 
         input_ids = np.array(
-            [item.ids for item in encoded],
+            [
+                item.ids
+                for item in encoded
+            ],
             dtype=np.int64
         )
 
         attention_mask = np.array(
-            [item.attention_mask for item in encoded],
+            [
+                item.attention_mask
+                for item in encoded
+            ],
             dtype=np.int64
         )
 
@@ -116,8 +154,14 @@ class MultilingualE5Embedder:
 
         hidden_states = outputs[0]
 
-        mask = attention_mask.astype(np.float32)
-        mask = np.expand_dims(mask, axis=-1)
+        mask = attention_mask.astype(
+            np.float32
+        )
+
+        mask = np.expand_dims(
+            mask,
+            axis=-1
+        )
 
         summed = np.sum(
             hidden_states * mask,
@@ -145,7 +189,9 @@ class MultilingualE5Embedder:
                 a_max=None
             )
 
-        return embeddings.astype(np.float32)
+        return embeddings.astype(
+            np.float32
+        )
 
     def embed_documents(
         self,
@@ -162,25 +208,48 @@ class MultilingualE5Embedder:
 
         all_embeddings = []
 
-        for start in range(0, len(texts), batch_size):
-            batch = texts[start:start + batch_size]
+        for start in range(
+            0,
+            len(texts),
+            batch_size
+        ):
+            batch = texts[
+                start:start + batch_size
+            ]
 
             passages = [
                 f"passage: {text}"
                 for text in batch
             ]
 
-            embeddings = self._encode(passages)
-            all_embeddings.append(embeddings)
+            embeddings = self._encode(
+                passages
+            )
 
-        return np.vstack(all_embeddings)
+            all_embeddings.append(
+                embeddings
+            )
 
-    def embed_query(self, query: str) -> np.ndarray:
+        return np.vstack(
+            all_embeddings
+        )
+
+    def embed_query(
+        self,
+        query: str
+    ) -> np.ndarray:
+
         text = f"query: {query}"
 
-        embedding = self._encode([text])
+        embedding = self._encode(
+            [text]
+        )
 
-        return embedding[0].astype(np.float32)
+        return embedding[0].astype(
+            np.float32
+        )
 
-    def get_embedding_dimension(self) -> int:
+    def get_embedding_dimension(
+        self
+    ) -> int:
         return self.embedding_dim
