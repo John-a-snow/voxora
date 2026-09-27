@@ -19,6 +19,8 @@ The current backend has a development corpus of 1,000 documents.
 
 The backend can currently be started locally with FastAPI and the main retrieval components load successfully.
 
+The backend is still in progress due to its dataset size issue beacuse the Free tier is limited.
+
 **Currently we have worked on:**
 
 - Converting voice to text with Sarvam

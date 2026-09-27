@@ -10,3 +10,4 @@ data/indexes/
 frontend/node_modules/
 frontend/dist/
 *.log
+onnx/model_int8.onnx

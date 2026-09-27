@@ -4,13 +4,13 @@ pydantic
 pydantic-settings
 faiss-cpu
 rank-bm25
-sentence-transformers
 groq
-google-genai
-datasets
 huggingface_hub
 pyarrow
+numpy
 psutil
 requests
 python-dotenv
 python-multipart
+onnxruntime
+tokenizers
