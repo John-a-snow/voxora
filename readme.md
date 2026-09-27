@@ -21,6 +21,7 @@
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat" alt="MIT License"/>
 
 </p>
+
 # VOXORA
 
 **Voxora is a voice-based question answering RAG pipeline that combines either voice or text. , document retrieval and grounded responses.**
@@ -29,19 +30,19 @@
 
 # What Voxora can do
 
-**Currently, Voxora supports:**
+**Currently Voxora supports:**
 
-Voice-based questions
-Text-based questions
-Speech-to-text using Sarvam
-Multilingual text embeddings using E5
-Document search using FAISS
-BM25 search as a fallback
-Context-based answer generation using Groq
-Basic grounding checks for generated answers
-Source/citation IDs for retrieved information
-Retrieval and generation latency tracking
-A React frontend connected to the FastAPI backend
+* Voice-based questions
+* Text-based questions
+* Speech-to-text using Sarvam
+* Multilingual text embeddings using E5
+* Document search using FAISS
+* BM25 search as a fallback
+* Context-based answer generation using Groq
+* Basic grounding checks for generated answers
+* Source/citation IDs for retrieved information
+* Retrieval and generation latency tracking
+* A React frontend connected to the FastAPI backend
 
 # Knowledge Base
 
@@ -115,7 +116,7 @@ Render for the backend
 Vercel for the frontend
 
 
-**Currently we have worked on:**
+# Currently we have worked on:**
 
 - Converting voice to text with Sarvam
 - Creating text embeddings with E5
@@ -145,8 +146,7 @@ Grounding Check
     ↓
 Final Answer
 ```
-
-**How to run it locally**
+# How to run it locally
 
 For the backend:
 
