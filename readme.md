@@ -33,7 +33,7 @@ The backend is still in progress due to its dataset size issue beacuse the Free 
 ```text
 Voice input
     ↓
-Sarvam Speech to Text
+Sarvam Speech to Text 
     ↓
 Query
     ↓
