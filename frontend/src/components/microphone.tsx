@@ -8,8 +8,8 @@ interface MicrophoneProps {
 }
 
 const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-  "http://localhost:8001";
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ||
+  "https://voxora-backend-52w2.onrender.com";
 
 export function Microphone({
   onResult,
@@ -58,7 +58,10 @@ export function Microphone({
 
       recorder.onstop = async () => {
         const mimeType = recorder.mimeType || "audio/webm";
-        const extension = mimeType.includes("ogg") ? "ogg" : "webm";
+
+        const extension = mimeType.includes("ogg")
+          ? "ogg"
+          : "webm";
 
         const audioBlob = new Blob(chunksRef.current, {
           type: mimeType,
@@ -66,6 +69,7 @@ export function Microphone({
 
         stream.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
+        recorderRef.current = null;
 
         if (audioBlob.size === 0) {
           onError("No audio was recorded. Please try again.");
@@ -78,19 +82,25 @@ export function Microphone({
       recorder.start();
       setIsRecording(true);
     } catch (error) {
-      console.error(error);
+      console.error("Microphone error:", error);
       onError("Microphone permission denied or unavailable.");
     }
   };
 
   const stopRecording = () => {
-    if (recorderRef.current && recorderRef.current.state !== "inactive") {
+    if (
+      recorderRef.current &&
+      recorderRef.current.state !== "inactive"
+    ) {
       recorderRef.current.stop();
       setIsRecording(false);
     }
   };
 
-  const processAudio = async (audioBlob: Blob, extension: string) => {
+  const processAudio = async (
+    audioBlob: Blob,
+    extension: string
+  ) => {
     setIsProcessing(true);
 
     try {
@@ -110,22 +120,34 @@ export function Microphone({
         }
       );
 
-      const data = await response.json();
+      let data;
+
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(
+          `Backend returned an invalid response (${response.status}).`
+        );
+      }
 
       if (!response.ok) {
         throw new Error(
-          data?.detail || "Voice query failed."
+          data?.detail ||
+            data?.message ||
+            "Voice query failed."
         );
       }
 
       onResult(data as VoiceQueryResponse);
     } catch (error) {
-      console.error(error);
+      console.error("Voice query error:", error);
 
       if (error instanceof Error) {
         onError(error.message);
       } else {
-        onError("Backend offline or request failed.");
+        onError(
+          "Backend offline or request failed."
+        );
       }
     } finally {
       setIsProcessing(false);
@@ -163,7 +185,8 @@ export function Microphone({
         )}
 
         <p className="text-sm text-gray-500">
-          Speak in English or Hindi. Keep the question under 30 seconds.
+          Speak in English or Hindi. Keep the question under 30
+          seconds.
         </p>
       </div>
 
