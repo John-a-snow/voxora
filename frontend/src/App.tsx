@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Hero } from "./components/hero";
 import { TextInput } from "./components/TextInput";
 import { Microphone } from "./components/microphone";
-import { Results } from "./components/results";
+import { Results } from "./components/Results";
 import { Telemetry } from "./components/telemetry";
 import type {
   LatencySummary,
