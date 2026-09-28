@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Hero } from "./components/hero";
+import { TextInput } from "./components/TextInput";
 import { Microphone } from "./components/microphone";
-import { Results } from "./components/Results";
+import { Results } from "./components/results";
 import { Telemetry } from "./components/telemetry";
 import type {
   LatencySummary,
@@ -29,12 +30,12 @@ function Navbar({ toggleDarkMode, isDarkMode, currentView, setCurrentView }: { t
           Home
         </button>
         <button 
-          onClick={() => setCurrentView('features')}
+          onClick={() => setCurrentView('features')} 
           className={`hover:text-brand-primary transition-colors ${currentView === 'features' ? 'border-b-2 border-brand-primary text-brand-primary' : ''}`}
-          >
-            Features
-          </button>  
-      </div> 
+        >
+          Features
+        </button>
+      </div>
       <div className="border-l-3 border-brand-border flex items-stretch">
         <button onClick={toggleDarkMode} className="px-4 border-r-3 border-brand-border hover:bg-brand-bg flex items-center justify-center text-brand-text">
           {isDarkMode ? (
@@ -43,11 +44,11 @@ function Navbar({ toggleDarkMode, isDarkMode, currentView, setCurrentView }: { t
             </svg>
           ) : (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M17.293 13.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+              <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
             </svg>
           )}
         </button>
-                <button 
+        <button 
           onClick={() => setCurrentView('app')}
           className="px-6 bg-brand-primary text-white font-black uppercase tracking-widest hover:bg-brand-primary-hover"
         >
@@ -211,7 +212,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen py-8 px-4 sm:px-8 lg:px-16 max-w-[1400px] mx-auto bg-brand-bg relative overflow-hidden selection:bg-brand-primary selection:text-white transition-colors duration-300">
-      {/* Decorative background elements */}
+      
       <div className="absolute top-40 left-10 w-24 h-24 bg-brand-primary brutal-border brutal-shadow rotate-12 opacity-10 pointer-events-none hidden md:block" />
       <div className="absolute bottom-40 right-10 w-32 h-32 bg-brand-panel brutal-border brutal-shadow -rotate-6 opacity-20 pointer-events-none hidden md:block" />
       
@@ -235,7 +236,22 @@ export default function App() {
           <>
             <Hero />
 
-            <div className="flex justify-center mt-12 w-full">
+            <div className="flex flex-col items-center justify-center mt-12 w-full max-w-3xl mx-auto gap-8">
+              <TextInput
+                onResult={handleResult}
+                onError={handleError}
+                onClear={() => {
+                  setError(null);
+                  setResult(null);
+                }}
+              />
+              
+              <div className="w-full text-center relative flex items-center justify-center before:content-[''] before:absolute before:h-[4px] before:w-full before:bg-brand-border before:z-0">
+                <span className="bg-brand-bg brutal-border px-6 py-2 font-mono font-black text-brand-text uppercase tracking-widest text-lg relative z-10">
+                  OR
+                </span>
+              </div>
+
               <Microphone
                 onResult={handleResult}
                 onError={handleError}
@@ -265,7 +281,7 @@ export default function App() {
         )}
       </main>
 
-      {/* History Drawer (Only show when in the app) */}
+    
       <div 
         className={`fixed top-0 right-0 h-full w-80 bg-brand-panel border-l-4 border-brand-border transform transition-transform duration-300 z-50 brutal-shadow ${isHistoryOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
@@ -301,8 +317,7 @@ export default function App() {
           </div>
         </div>
       </div>
-      
-      {/* History Floating Action Button */}
+  
       {currentView === 'app' && !isHistoryOpen && (
         <button 
           onClick={() => setIsHistoryOpen(true)}
@@ -315,3 +330,4 @@ export default function App() {
       )}
     </div>
   );
+}
