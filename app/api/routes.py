@@ -7,6 +7,7 @@ from typing import Dict, List, Any
 
 import pyarrow.parquet as pq
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from pydantic import BaseModel
 from groq import Groq
 
 from app.stt.sarvam import SarvamSTTProvider
@@ -33,21 +34,21 @@ CORPUS_PATH = os.path.join(
     PROJECT_ROOT,
     "data",
     "processed",
-    "dev_corpus.parquet"
+    "dev_corpus_custom.parquet"
 )
 
 FAISS_PATH = os.path.join(
     PROJECT_ROOT,
     "data",
     "indexes",
-    "dev.faiss"
+    "dev_custom.faiss"
 )
 
 BM25_PATH = os.path.join(
     PROJECT_ROOT,
     "data",
     "indexes",
-    "dev_bm25.pkl"
+    "dev_custom_bm25.pkl"
 )
 
 
@@ -717,6 +718,157 @@ async def voice_query(
         "status": status,
         "timings": {
             "stt_ms": stt_result.latency_ms,
+            "retrieval_ms": retrieval_ms,
+            "generation_ms": generation_ms,
+            "grounding_ms": grounding_ms,
+            "total_rag_ms": total_rag_ms,
+            "total_e2e_ms": total_e2e_ms
+        },
+        "retrieved_documents": documents,
+        "fallback_used": fallback_used,
+        "grounding_confidence": grounding_confidence
+    }
+
+
+class TextQueryRequest(BaseModel):
+    query: str
+    language: str = "English"
+
+
+@router.post("/api/query")
+async def text_query(req: TextQueryRequest):
+    start_e2e = time.perf_counter()
+
+    if not services:
+        initialize_services()
+
+    query_text = req.query.strip()
+
+    if not query_text:
+        raise HTTPException(
+            status_code=400,
+            detail="Query cannot be empty"
+        )
+
+    if is_unsafe(query_text):
+        total_ms = round(
+            (time.perf_counter() - start_e2e) * 1000.0,
+            2
+        )
+
+        return {
+            "transcript": query_text,
+            "language": req.language,
+            "answer": "I can't help with that request.",
+            "grounded": False,
+            "citations": [],
+            "status": "refused_unsafe",
+            "timings": {
+                "stt_ms": 0.0,
+                "retrieval_ms": 0.0,
+                "generation_ms": 0.0,
+                "grounding_ms": 0.0,
+                "total_rag_ms": 0.0,
+                "total_e2e_ms": total_ms
+            },
+            "retrieved_documents": []
+        }
+
+    documents, fallback_used, retrieval_ms = retrieve_documents(
+        query_text
+    )
+
+    if not documents:
+        total_ms = round(
+            (time.perf_counter() - start_e2e) * 1000.0,
+            2
+        )
+
+        return {
+            "transcript": query_text,
+            "language": req.language,
+            "answer": (
+                "No relevant information was found "
+                "in the knowledge base."
+            ),
+            "grounded": False,
+            "citations": [],
+            "status": "refused_insufficient",
+            "timings": {
+                "stt_ms": 0.0,
+                "retrieval_ms": retrieval_ms,
+                "generation_ms": 0.0,
+                "grounding_ms": 0.0,
+                "total_rag_ms": retrieval_ms,
+                "total_e2e_ms": total_ms
+            },
+            "retrieved_documents": []
+        }
+
+    context = build_context(documents)
+
+    generation_data, generation_ms = generate_answer(
+        query_text,
+        context
+    )
+
+    grounding_start = time.perf_counter()
+
+    answer = generation_data.get(
+        "answer",
+        ""
+    )
+
+    citations = generation_data.get(
+        "citations",
+        []
+    )
+
+    grounded, grounding_confidence = validate_grounding(
+        answer,
+        citations,
+        documents
+    )
+
+    grounding_ms = round(
+        (time.perf_counter() - grounding_start) * 1000.0,
+        2
+    )
+
+    status = "success" if grounded else "ungrounded"
+
+    total_rag_ms = round(
+        retrieval_ms
+        + generation_ms
+        + grounding_ms,
+        2
+    )
+
+    total_e2e_ms = round(
+        (time.perf_counter() - start_e2e) * 1000.0,
+        2
+    )
+
+    latency_records.append(
+        {
+            "stt_ms": 0.0,
+            "retrieval_ms": retrieval_ms,
+            "generation_ms": generation_ms,
+            "grounding_ms": grounding_ms,
+            "total_rag_ms": total_rag_ms,
+            "total_e2e_ms": total_e2e_ms
+        }
+    )
+
+    return {
+        "transcript": query_text,
+        "language": req.language,
+        "answer": answer,
+        "grounded": grounded,
+        "citations": citations,
+        "status": status,
+        "timings": {
+            "stt_ms": 0.0,
             "retrieval_ms": retrieval_ms,
             "generation_ms": generation_ms,
             "grounding_ms": grounding_ms,
