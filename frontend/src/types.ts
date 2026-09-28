@@ -42,4 +42,6 @@ export interface VoiceQueryResponse {
   status: string;
   timings: Timings;
   retrieved_documents: Document[];
+  fallback_used?: boolean;
+  grounding_confidence?: number;
 }
