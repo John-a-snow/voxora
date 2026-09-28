@@ -16,17 +16,16 @@
 
 </p>
 
-<p align="center">
-
-  <img src="https://img.shields.io/badge/License-MIT-green?style=flat" alt="MIT License"/>
-
-</p>
 
 # VOXORA
 
 **Voxora is a voice-based question answering RAG pipeline that combines either voice or text. , document retrieval and grounded responses.**
 
 **The main idea is simple: A user speaks or writes a question, the system converts it into text, searches the available knowledge base and returns an answer based on the retrieved information.**
+
+Demo: [Here](https://drive.google.com/file/d/1ZkFlVkVn6y471-FY8Fe3Od7yz-dxISgZ/view?usp=sharing)
+
+Live: [Here](https://voxora-five.vercel.app/)
 
 # What Voxora can do
 
@@ -50,13 +49,13 @@ The backend currently uses a development corpus containing 1,047 documents.
 
 Along with the original development corpus, we added a small custom technology-focused corpus covering topics such as:
 
-Hack Club
-Git
-GitHub
-Python
-Java
-JavaScript
-Web Development
+- Hack Club
+- Git
+- GitHub
+- Python
+- Java
+- JavaScript
+- Web Development
 
 ## How It Works
 
@@ -152,7 +151,8 @@ For the backend:
 
 ```bash
 .\.venv\Scripts\Activate.ps1
-python serve.py
+
+python scripts/serve.py
 ```
 
 Backend:
