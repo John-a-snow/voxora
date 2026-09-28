@@ -21,7 +21,7 @@ const API_BASE_URL =
 
     const recorderRef = useRef<MediaRecorder | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
-    const 2useRef<BlobPart[]>([]);
+    const blobPartsRef = useRef<BlobPart[]>([]);    
      
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
